@@ -10,9 +10,12 @@ Hope this helps!
 And here is 
 
 ## ToDo
+```
 - dodać 2 niebanalne widoki (oparte na kilku tabelach i ukrywające część danych dla użytkowników)
+```
 
 ## Done
+```
 08/31/21#18:17:51 😀 - Dodać 5 historyjek użytkonika. Ma być 2 użytkowników.
 	Jako ... chcę ...potrzeba użytkownika... żeby ...cel który chcę osiągnąć
 08/31/21#18:20:03 😀 - dodać usuwanie bazy danych i jej tworzenie # nie potrzeba, będę leciał na master
@@ -20,9 +23,10 @@ And here is
 08/31/21#19:08:31 😀 - dodać minimum 5 tabel wraz z ich usuwaniem
 08/31/21#22:39:41 😀 - stworzyć procedurę do dodawania elementów do bazy danych
 	 wypełnić bazę danych 3 rekordami
+```
 
 ### User stories:
-
+```
 Topic:
 System do zarządzania flotą samochodów ciężarowych
 
@@ -86,3 +90,4 @@ OstatniaPozycjaPojazdu
 	id
 	lat
 	lon
+```
