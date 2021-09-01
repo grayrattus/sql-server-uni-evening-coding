@@ -47,13 +47,13 @@ System do zarządzania flotą samochodów ciężarowych
 \section{Zadanie 1}
  Historyjki użytkownika:
 
-\begin{itemize}
+\begin{enumerate}
     \item Jako kierowca chcę mieć możliwość sprawdzenia gdzie ostatnio zaparkowałem pojazd żeby móc go odnależć.
     \item Jako szef chcę wiedzieć ile samochodów jest obecnie gotowych do pracy tak abym mógł lepiej zaplanować koszty amortyzacji.
     \item Jako pracownik biura chciałbym mieć możliwość monitorowania czy pracownik oddał samochód na czas tak abym mógł określić jego przyszłą wypłatę przez liczbę przepracowanych godzin.
     \item Jako kierowca chcę wiedzieć kto przede mną używał pojazdu tak abym mógł zgłosić nieprawidłowości stanu.
     \item Jako zewnętrzna firma obsługująca monitorowanie pojazdów firmy chielibyśmy mieć możliwość zapisywania ostatniej pozycji pojazdu co 15 min tak aby w przyszłości łatwiej móc określić pozycję pojazdu po jego uruchomieniu.
-\end{itemize}
+\end{enumerate}
 
 \section{Zadanie 2}
 Baza danych w schemacie ERD bez tabel łączących jest prosta ale pozwoli na 
@@ -111,5 +111,10 @@ Przypadki te są umieszczone w komentarzach.
 \section{Zadanie 5 - Widoki}
 \inputminted[breaklines]{sql}{../zad5.sql}
 
+\section{Jak uruchomić}
+
+Najpierw należy uruchomić \textbf{zad3.sql}, które buduje bazę danych.
+Następnie \textbf{zad4.sql} z procedurami a na koniec \textbf{zad5.sql}
+plik z widokami.
 
 \end{document}
