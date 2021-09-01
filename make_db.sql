@@ -20,16 +20,16 @@ CREATE TABLE firma.dbo.pracownik
 );
 
 CREATE TABLE firma.dbo.pracownik_to_rozklad_godzin(
-	id INT PRIMARY KEY,
+	id INT IDENTITY(1,1) PRIMARY KEY,
 	id_pracownik INT not null,
 	id_rozklad_godzin INT not null,
 )
 
 CREATE TABLE firma.dbo.rozklad_godzin
 (
-	id INT PRIMARY KEY,
+	id INT IDENTITY(1,1) PRIMARY KEY,
 	ilosc_godzin INT not null,
-	data_wpisu date not null
+	data_wpisu datetime not null
 );
 
 CREATE TABLE firma.dbo.magazyn(
@@ -55,7 +55,7 @@ CREATE TABLE firma.dbo.pojazd_w_uzyciu(
 
 CREATE TABLE firma.dbo.ostatnia_pozycja_pojazdu(
 	id INT IDENTITY(1,1) PRIMARY KEY,
-	data_aktualizacji date not null,
+	data_aktualizacji datetime not null,
 	notatka NVARCHAR(20),
 	lat FLOAT,
 	lon FLOAT
@@ -114,7 +114,7 @@ CREATE PROCEDURE dodaj_pojazd @id_pracownik INT, @marka NVARCHAR(40), @id_magazy
 	SELECT @id_pojazd = SCOPE_IDENTITY()
 
 	INSERT INTO firma.dbo.ostatnia_pozycja_pojazdu (lat ,lon, data_aktualizacji, notatka) VALUES
-		(@lat_magazyn, @lon_magazyn, GETDATE(), 'PIERWSZA_BAZA')
+		(@lat_magazyn, @lon_magazyn, SYSDATETIME(), 'PIERWSZA_BAZA')
 
 	declare @id_ostatniej_pozycji_pojazdu INT
 	SELECT @id_ostatniej_pozycji_pojazdu = SCOPE_IDENTITY()
@@ -122,15 +122,50 @@ CREATE PROCEDURE dodaj_pojazd @id_pracownik INT, @marka NVARCHAR(40), @id_magazy
 	INSERT INTO firma.dbo.pojazd_w_uzyciu (id_pojazd, id_ostatnia_pozycja)
 		VALUES (@id_pojazd, @id_ostatniej_pozycji_pojazdu)
 
+
 GO
 IF EXISTS(SELECT 1 FROM sys.procedures WHERE Name = 'uaktualnij_pozycje_pojazdu')
 DROP PROCEDURE uaktualnij_pozycje_pojazdu
+GO
+CREATE PROCEDURE uaktualnij_pozycje_pojazdu @id_pojazd INT, @lat FLOAT, @lon FLOAT  AS 
+	INSERT INTO firma.dbo.ostatnia_pozycja_pojazdu(data_aktualizacji, lat, lon, notatka)
+		VALUES (SYSDATETIME(), @lat, @lon, 'ZMIANA_POZYCJI')
 
 GO
-CREATE PROCEDURE uaktualnij_pozycje_pojazdu @id_pracownik INT, @marka NVARCHAR(40), @id_magazyn INT AS 
-	INSERT INTO firma.dbo.pojazd (id_pracownik, marka, id_magazyn)
-	VALUES (@id_pracownik, @marka, @id_magazyn)
-	
+IF EXISTS(SELECT 1 FROM sys.procedures WHERE Name = 'uaktualnij_pozycje_pojazdu_z_interwalem')
+DROP PROCEDURE uaktualnij_pozycje_pojazdu_z_interwalem
+
+GO
+-- Jeżeli ostatnia data dla danego pojazdu jest mniejsza niż 15 minut to 
+-- dodaj nową pozycję. W ten sposób posiadamy historię tego jak poruszał się
+-- pojazd.
+CREATE PROCEDURE uaktualnij_pozycje_pojazdu_z_interwalem @id_pojazd INT, @lat FLOAT, @lon FLOAT  AS 
+	IF NOT EXISTS(SELECT pwu.id from firma.dbo.pojazd_w_uzyciu pwu LEFT 
+		JOIN firma.dbo.ostatnia_pozycja_pojazdu opp ON  pwu.id_ostatnia_pozycja = opp.id 
+		WHERE pwu.id_pojazd  = @id_pojazd AND DATEDIFF(MINUTE,opp.data_aktualizacji, SYSDATETIME()) < 15)
+	BEGIN
+		EXEC uaktualnij_pozycje_pojazdu @id_pojazd, @lat, @lon
+	END
+	ELSE
+	BEGIN
+		PRINT 'Ostatnia pozycja jest młodsza niż 15 minut'
+	END
+
+GO
+IF EXISTS(SELECT 1 FROM sys.procedures WHERE Name = 'zakoncz_zmiane')
+DROP PROCEDURE zakoncz_zmiane
+
+GO
+-- Procedura kończy zmianę pracownika i dodaje go do rozkładu godzin
+CREATE PROCEDURE zakoncz_zmiane @id_pracownik INT, @liczba_godzin_w_dniu INT AS 
+	INSERT INTO firma.dbo.rozklad_godzin(ilosc_godzin, data_wpisu) VALUES (@liczba_godzin_w_dniu, SYSDATETIME())
+
+	declare @id_rozklad_godzin INT
+	SELECT @id_rozklad_godzin = SCOPE_IDENTITY()
+
+	INSERT INTO firma.dbo.pracownik_to_rozklad_godzin (id_pracownik, id_rozklad_godzin) 
+		VALUES (@id_pracownik, @id_rozklad_godzin)
+
 GO
 EXEC dodaj_magazyn 'Green shop', 59.09, 69.01;
 EXEC dodaj_magazyn 'Black shop', 59.09, 69.01;
@@ -146,6 +181,50 @@ GO
 EXEC dodaj_pojazd 2, 'Scania Toscania', 1;
 EXEC dodaj_pojazd 3, 'Scania Toscania', 1;
 EXEC dodaj_pojazd 4, 'Scania', 1;
-EXEC dodaj_pojazd 5, 'Jelcz', 1;
+EXEC dodaj_pojazd 5, 'Jelcz', 1
 
+GO
+-- To zapytanie nie powinno się wykonać ponieważ gdy samochód jest dodawany do bazy dodawana jest
+-- też jego lokalizacja.
+-- Powinno działać po 15 minutach od dodania do bazy.
+EXEC uaktualnij_pozycje_pojazdu_z_interwalem 1, 55.55, 99.0;
+-- Muszę też wypełnić trochę więcej danych więc dodaje pomocniczą procedurę, która
+-- uaktualnia pozycje pojazdu bez sprawdzenia interwału 15 minut
+EXEC uaktualnij_pozycje_pojazdu 1, 55.55, 99.0;
+EXEC uaktualnij_pozycje_pojazdu 1, 55.55, 99.0;
+EXEC uaktualnij_pozycje_pojazdu 2, 55.55, 99.0;
+EXEC uaktualnij_pozycje_pojazdu 3, 55.55, 99.0;
 
+GO
+-- Procedury kończące zmiany pracowników
+EXEC zakoncz_zmiane 1, 8
+EXEC zakoncz_zmiane 2, 8;
+EXEC zakoncz_zmiane 3, 8;
+
+GO
+IF EXISTS(SELECT 1 FROM sys.views WHERE Name = 'ostatnie_pozycje_pojazdu')
+DROP VIEW ostatnie_pozycje_pojazdu
+
+GO
+CREATE VIEW ostatnie_pozycje_pojazdu AS
+	SELECT pwu.id_pojazd, opp.lat, opp.lon, MAX(opp.data_aktualizacji) as data_aktualizacji
+		 FROM firma.dbo.pojazd_w_uzyciu pwu 
+		 LEFT JOIN firma.dbo.ostatnia_pozycja_pojazdu opp ON opp.id = pwu.id_ostatnia_pozycja 
+		 GROUP BY pwu.id_pojazd , opp.lat, opp.lon, opp.data_aktualizacji 
+
+GO
+IF EXISTS(SELECT 1 FROM sys.views WHERE Name = 'godziny_pracy_pracownikow')
+DROP VIEW godziny_pracy_pracownikow
+GO
+CREATE VIEW godziny_pracy_pracownikow AS
+	SELECT p.id, p.imie, p.nazwisko, SUM(rg.ilosc_godzin) as suma_godzin FROM firma.dbo.pracownik_to_rozklad_godzin ptrg 
+		LEFT JOIN firma.dbo.pracownik p ON ptrg.id_pracownik = ptrg.id_pracownik 
+		LEFT JOIN firma.dbo.rozklad_godzin rg ON rg.id = ptrg.id_rozklad_godzin 
+		GROUP BY rg.ilosc_godzin, p.id, p.imie, p.nazwisko 
+		
+	SELECT pwu.id_pojazd, opp.lat, opp.lon, MAX(opp.data_aktualizacji) as data_aktualizacji
+		 FROM firma.dbo.pojazd_w_uzyciu pwu 
+		 LEFT JOIN firma.dbo.ostatnia_pozycja_pojazdu opp ON opp.id = pwu.id_ostatnia_pozycja 
+		 GROUP BY pwu.id_pojazd , opp.lat, opp.lon, opp.data_aktualizacji 
+	
+	

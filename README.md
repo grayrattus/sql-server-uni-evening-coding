@@ -11,7 +11,14 @@ And here is
 
 ## ToDo
 ```
+- napisanie sprawozdania w jakimś Markdown lub Latex
+- sprawdzenie tego markdown marmaid. Jak będzie lipne to PlantUML na pełnej.
 - dodać 2 niebanalne widoki (oparte na kilku tabelach i ukrywające część danych dla użytkowników)
+09/01/21#10:31:37 😀 	- dodać widok ostatniej pozycji samochodu dla danego kierowcy
+	- podający wszystkie godziny pracy w tym miesiącu dla danego pracownika
+	- dodać widok poprzedniego kierowcy, który używał danego samochodu
+09/01/21#10:00:34 😀 - dodać procedurę dodającą przepracowane godziny dla pracownika
+09/01/21#09:52:11 😀 - dodać procedurę do uaktualniania pozycji pojazdu jeżeli poprzednia jest 15 minut mniejsza od ostatniej aktualizacji
 ```
 
 ## Done
@@ -90,4 +97,22 @@ OstatniaPozycjaPojazdu
 	id
 	lat
 	lon
+```
+
+TEST mermaid
+```mermaid
+graph TB
+
+  SubGraph1 --> SubGraph1Flow
+  subgraph "SubGraph 1 Flow"
+  SubGraph1Flow(SubNode 1)
+  SubGraph1Flow -- Choice1 --> DoChoice1
+  SubGraph1Flow -- Choice2 --> DoChoice2
+  end
+
+  subgraph "Main Graph"
+  Node1[Node 1] --> Node2[Node 2]
+  Node2 --> SubGraph1[Jump to SubGraph1]
+  SubGraph1 --> FinalThing[Final Thing]
+end
 ```
