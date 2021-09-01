@@ -1,0 +1,34 @@
+erDiagram
+    MAGAZYN {
+        VARCHAR40 nazwa
+        FLOAT lat
+        FLOAT lon
+    }
+    PRACOWNIK {
+        VARCHAR40 imie
+        VARCHAR40 nazwisko
+        TYP_PRACOWNIKA typ
+    }
+    ROZKLAD_GODZIN {
+        INT ilosc_godzin
+        DATETIME data_wpisu
+    }
+    POJAZD {
+        VARCHAR40 marka
+        BIT uszkodzony
+    }
+    OSTATNIA_POZYCJA_POJAZDU {
+        DATETIME data_aktualizacji
+        VARCHAR40 notatka
+        FLOAT lat
+        FLOAT lon
+    }
+    TYP_PRACOWNIKA {
+        VARCHAR typ
+    }
+
+    MAGAZYN o{--|| POJAZD: Zawiera
+    MAGAZYN o{--|| PRACOWNIK: Zawiera
+    PRACOWNIK }|--|{ ROZKLAD_GODZIN: Posiada
+    PRACOWNIK ||--|{ TYP_PRACOWNIKA: Jest
+    POJAZD }|--|{ OSTATNIA_POZYCJA_POJAZDU: Posiada
