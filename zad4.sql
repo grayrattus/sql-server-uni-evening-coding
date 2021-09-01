@@ -129,8 +129,8 @@ EXEC dodaj_pojazd 4, 'Scania', 1;
 EXEC dodaj_pojazd 5, 'Jelcz', 1
 
 GO
--- To zapytanie nie powinno się wykonać ponieważ gdy samochód jest dodawany do bazy dodawana jest
--- też jego lokalizacja.
+-- To zapytanie nie powinno się wykonać ponieważ gdy samochód jest dodawany do bazy to dodawana jest
+-- również jego lokalizacja.
 -- Powinno działać po 15 minutach od dodania do bazy.
 EXEC uaktualnij_pozycje_pojazdu_z_interwalem 1, 55.55, 99.0;
 
