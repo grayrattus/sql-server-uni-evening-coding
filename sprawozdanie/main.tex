@@ -89,10 +89,7 @@ Zasadniczo baza składa się z 4 tabel głównych i jednej uzupełniającej \te
     \caption{Schemat ERD bazy danych po implementacji.}
 \end{figure}
 
-Diagram różni się odrobinę od tego przed implementacją. Główną różnicą jest
-wprowadzenie tabeli, które pozwalają na relację wiele do wielu i jeden do wielu.
-Z tego samego powodu również atrybuty uległy zmianie.
-
+Diagram nie różni się od tego przed implementacją.
 Poniżej zamieszczam kod budujący bazę danych. 
 
 \textbf{\textcolor{orange}{Do sprawdzenia bezy w SQL server bardzo proszę 
@@ -110,5 +107,31 @@ Przypadki te są umieszczone w komentarzach.
 
 \section{Zadanie 5 - Widoki}
 \inputminted[breaklines, breaksymbolleft=]{sql}{../zad5.sql}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{assets/godziny_pracy.png}
+    \caption{Wynik widoku godzin pracy w ostatnim miesiącu}
+\end{figure}
+
+Na zrzucie ekranu widać, że sumowane są poprawnie dodane godziny pracy pracowników.
+Wcześniejsze procedury dodały Arturowi 16h pracy a Karolowi i Abramowi po 8.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{assets/ostatni_kierowcy.png}
+    \caption{Wynik widoku ostatnich kierowców w samochodach}
+\end{figure}
+
+Widok ostatnich kierowców również działa. Zgadza się on z opóźnieniem 5 sekund.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{assets/ostatnie_pozycje_pojazdu.png}
+    \caption{Wynik widoku ostatnich pozycji pojazdów}
+\end{figure}
+
+Tak samo jest z pozycjami pojazdów. Opóźnienie 5 sekund jest widoczne. Również lat, lon dla jednej z Scania Toscania
+wynosi 66.66 oraz 66.66.
 
 \end{document}

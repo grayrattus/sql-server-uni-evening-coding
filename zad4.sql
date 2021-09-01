@@ -66,9 +66,14 @@ GO
 IF EXISTS(SELECT 1 FROM dziedziczak.sys.procedures WHERE Name = 'uaktualnij_pozycje_pojazdu')
 DROP PROCEDURE firma.uaktualnij_pozycje_pojazdu
 GO
-CREATE PROCEDURE firma.uaktualnij_pozycje_pojazdu @id_pojazd INT, @lat FLOAT, @lon FLOAT  AS 
+CREATE PROCEDURE firma.uaktualnij_pozycje_pojazdu @id_pojazd INT, @id_pracownik INT, @lat FLOAT, @lon FLOAT  AS 
 	INSERT INTO dziedziczak.firma.ostatnia_pozycja_pojazdu(data_aktualizacji, lat, lon, notatka)
 		VALUES (SYSDATETIME(), @lat, @lon, 'ZMIANA_POZYCJI')
+
+	declare @id_ostatnia_pozycja INT
+	SELECT @id_ostatnia_pozycja = SCOPE_IDENTITY()
+	INSERT INTO dziedziczak.firma.pojazd_w_uzyciu (id_pojazd, id_ostatnia_pozycja, id_ostatni_pracownik)
+		VALUES (@id_pojazd, @id_ostatnia_pozycja, @id_pracownik)
 
 GO
 IF EXISTS(SELECT 1 FROM dziedziczak.sys.procedures WHERE Name = 'uaktualnij_pozycje_pojazdu_z_interwalem')
@@ -80,12 +85,12 @@ GO
 -- dodaj nową pozycję. W ten sposób posiadamy historię tego jak poruszał się
 -- pojazd. Jeżeli czas jest mniejszy to loguję w serwerzę informację o 
 -- zapytaniu.
-CREATE PROCEDURE firma.uaktualnij_pozycje_pojazdu_z_interwalem @id_pojazd INT, @lat FLOAT, @lon FLOAT  AS 
+CREATE PROCEDURE firma.uaktualnij_pozycje_pojazdu_z_interwalem @id_pojazd INT, @id_pracownik INT, @lat FLOAT, @lon FLOAT  AS 
 	IF NOT EXISTS(SELECT pwu.id from dziedziczak.firma.pojazd_w_uzyciu pwu LEFT 
 		JOIN dziedziczak.firma.ostatnia_pozycja_pojazdu opp ON  pwu.id_ostatnia_pozycja = opp.id 
 		WHERE pwu.id_pojazd  = @id_pojazd AND DATEDIFF(MINUTE,opp.data_aktualizacji, SYSDATETIME()) < 15)
 	BEGIN
-		EXEC firma.uaktualnij_pozycje_pojazdu @id_pojazd, @lat, @lon
+		EXEC firma.uaktualnij_pozycje_pojazdu @id_pojazd, @id_pracownik, @lat, @lon
 	END
 	ELSE
 	BEGIN
@@ -132,17 +137,19 @@ GO
 -- To zapytanie nie powinno się wykonać ponieważ gdy samochód jest dodawany do bazy to dodawana jest
 -- również jego lokalizacja.
 -- Powinno działać po 15 minutach od dodania do bazy.
-EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu_z_interwalem 1, 55.55, 99.0;
+EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu_z_interwalem 1, 1, 55.55, 99.0;
 
 -- Muszę też wypełnić trochę więcej danych więc dodaje pomocniczą procedurę, która
 -- uaktualnia pozycje pojazdu bez sprawdzenia interwału 15 minut
-EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 1, 55.55, 99.0;
-EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 1, 55.55, 99.0;
-EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 2, 55.55, 99.0;
-EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 3, 55.55, 99.0;
+EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 1, 1, 55.55, 99.0;
+WAITFOR DELAY '00:00:05';  
+EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 1, 1, 66.66, 66.66;
+EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 2, 2, 55.55, 99.0;
+EXEC dziedziczak.firma.uaktualnij_pozycje_pojazdu 3, 3, 55.55, 99.0;
 
 GO
 -- Procedury kończące zmiany pracowników
+EXEC dziedziczak.firma.zakoncz_zmiane 1, 8
 EXEC dziedziczak.firma.zakoncz_zmiane 1, 8
 EXEC dziedziczak.firma.zakoncz_zmiane 2, 8;
 EXEC dziedziczak.firma.zakoncz_zmiane 3, 8;
