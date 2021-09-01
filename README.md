@@ -14,6 +14,8 @@ And here is
 # Build document for university
 cd sprawdzenie
 pdflatex -shell-escape -synctex=1 -interaction=nonstopmode main; biber main; pdflatex -shell-escape -synctex=1 -interaction=nonstopmode main
+cd ..
+sh make_sql.sh
 
 # Start server for docker
 sudo docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=<YourStrong@Passw0rd>" \
