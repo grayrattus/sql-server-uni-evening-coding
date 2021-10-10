@@ -10,6 +10,9 @@ Hope this helps!
 And here is 
 
 # How to build
+
+## example1/*
+
 ```
 # Build document for university
 cd sprawdzenie
@@ -24,6 +27,12 @@ sudo docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=<YourStrong@Passw0rd>" \
 ```
 
 After all of this you should be able to run my scrips on server running on `localhost:1433`.
+
+## example2--smaller/database.sql
+
+```
+This is a simple database for other classes I had.
+```
 
 ## ToDo
 ```
