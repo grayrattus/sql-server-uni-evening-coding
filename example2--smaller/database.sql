@@ -26,7 +26,8 @@ CREATE TABLE dziedziczak.firma.ProductCategories (
 
 CREATE TABLE dziedziczak.firma.ProductSubCategories (
 	id INT IDENTITY(1,1) PRIMARY KEY,
-	SubCategory VARCHAR(20) NOT NULL UNIQUE
+	SubCategory VARCHAR(20) NOT NULL UNIQUE,
+	fk_productCategories INT NOT NULL
 );
 
 CREATE TABLE dziedziczak.firma.Geography (
@@ -46,9 +47,9 @@ CREATE TABLE dziedziczak.firma.Markets (
 );
 
 CREATE TABLE dziedziczak.firma.Orders (
-	OrderID CHAR(24) PRIMARY KEY NOT NULL,
-	OrderDate DATE NOT NULL UNIQUE,
-	ShipDate DATE NOT NULL UNIQUE,
+	OrderID VARCHAR(24) PRIMARY KEY NOT NULL,
+	OrderDate DATE NOT NULL,
+	ShipDate DATE NOT NULL,
 	fk_shipMode INT NOT NULL,
 	fk_customer CHAR(12) NOT NULL,
 	fk_segment INT NOT NULL,
@@ -92,7 +93,7 @@ CREATE TABLE dziedziczak.firma.States (
 
 
 
-ALTER table dziedziczak.firma.Products add constraint fk_products_productCategories foreign key (fk_productCategories) references dziedziczak.firma.ProductCategories(id);
+ALTER table dziedziczak.firma.ProductSubCategories add constraint fk_productSubCategories_productCategories foreign key (fk_productCategories) references dziedziczak.firma.ProductCategories(id);
 ALTER table dziedziczak.firma.Products add constraint fk_products_productSubCategories foreign key (fk_productSubCategories) references dziedziczak.firma.ProductSubCategories(id);
 
 ALTER table dziedziczak.firma.Geography add constraint fk_geography_markets foreign key (fk_markets) references dziedziczak.firma.Markets(id);
