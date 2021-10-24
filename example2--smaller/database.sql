@@ -15,7 +15,6 @@ CREATE SCHEMA firma
 CREATE TABLE dziedziczak.firma.Products(
 	ProductId CHAR(11) PRIMARY KEY NOT NULL,
 	ProductName VARCHAR(200) NOT NULL,
-	fk_productCategories INT NOT NULL,
 	fk_productSubCategories INT NOT NULL
 );
 
@@ -47,7 +46,7 @@ CREATE TABLE dziedziczak.firma.Markets (
 );
 
 CREATE TABLE dziedziczak.firma.Orders (
-	OrderID VARCHAR(24) PRIMARY KEY NOT NULL,
+	OrderID CHAR(24) PRIMARY KEY NOT NULL,
 	OrderDate DATE NOT NULL,
 	ShipDate DATE NOT NULL,
 	fk_shipMode INT NOT NULL,
@@ -56,12 +55,6 @@ CREATE TABLE dziedziczak.firma.Orders (
 	PostalCode VARCHAR(50),
 	fk_city INT NOT NULL,
 	fk_state INT NOT NULL,
-	fk_product CHAR(11) NOT NULL,
-	Sales MONEY NOT NULL,
-	Quantity INT NOT NULL,
-	Discount FLOAT NOT NULL DEFAULT 0.0,
-	Profit MONEY NOT NULL,
-	ShippingCost FLOAT NOT NULL,
 );
 
 CREATE TABLE dziedziczak.firma.ShipModes (
@@ -91,6 +84,16 @@ CREATE TABLE dziedziczak.firma.States (
  	fk_country INT NOT NULL
 );
 
+CREATE TABLE dziedziczak.firma.OrderedProducts (
+	id INT IDENTITY(1,1) PRIMARY KEY,
+	fk_order CHAR(24) NOT NULL,
+	fk_product CHAR(11) NOT NULL,
+	Sales MONEY NOT NULL,
+	Quantity INT NOT NULL,
+	Discount FLOAT NOT NULL DEFAULT 0.0,
+	Profit MONEY NOT NULL,
+	ShippingCost FLOAT NOT NULL,
+)
 
 
 ALTER table dziedziczak.firma.ProductSubCategories add constraint fk_productSubCategories_productCategories foreign key (fk_productCategories) references dziedziczak.firma.ProductCategories(id);
@@ -103,7 +106,9 @@ ALTER table dziedziczak.firma.Orders add constraint fk_orders_shipMode foreign k
 ALTER table dziedziczak.firma.Orders add constraint fk_corders_ustomer foreign key (fk_customer) references dziedziczak.firma.Customers(id);
 ALTER table dziedziczak.firma.Orders add constraint fk_orders_segment foreign key (fk_segment) references dziedziczak.firma.Segments(id);
 ALTER table dziedziczak.firma.Orders add constraint fk_orders_city foreign key (fk_city) references dziedziczak.firma.Cities(id);
-ALTER table dziedziczak.firma.Orders add constraint fk_orders_product foreign key (fk_product) references dziedziczak.firma.Products(ProductId);
+
+ALTER table dziedziczak.firma.OrderedProducts add constraint fk_orderedProducts_product foreign key (fk_product) references dziedziczak.firma.Products(ProductId);
+ALTER table dziedziczak.firma.OrderedProducts add constraint fk_orderedProducts_orders foreign key (fk_order) references dziedziczak.firma.Orders(OrderId);
 
 ALTER table dziedziczak.firma.Cities add constraint fk_cities_state foreign key (fk_state) references dziedziczak.firma.States(id);
 ALTER table dziedziczak.firma.States add constraint fk_states_country foreign key (fk_country) references dziedziczak.firma.Countries(id);
