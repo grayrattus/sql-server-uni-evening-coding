@@ -20,12 +20,12 @@ CREATE TABLE dziedziczak.firma.Products(
 
 CREATE TABLE dziedziczak.firma.ProductCategories (
 	id INT IDENTITY(1,1) PRIMARY KEY,
-	Category VARCHAR(20) NOT NULL UNIQUE
+	Category VARCHAR(200) NOT NULL UNIQUE
 );
 
 CREATE TABLE dziedziczak.firma.ProductSubCategories (
 	id INT IDENTITY(1,1) PRIMARY KEY,
-	SubCategory VARCHAR(20) NOT NULL UNIQUE,
+	SubCategory VARCHAR(200) NOT NULL UNIQUE,
 	fk_productCategories INT NOT NULL
 );
 
@@ -199,8 +199,179 @@ państwa tzn. tabeli States.
 EXEC dziedziczak.sys.sp_addextendedproperty 'MS_Description', N'
 Tabela zawiera informację o statnach w danym państwie.', 'schema', N'firma', 'table', N'States';
 
+GO
+
+IF EXISTS(SELECT 1 FROM dziedziczak.sys.procedures p WHERE Name = 'dodaj_kategorie')
+DROP PROCEDURE firma.dodaj_kategorie
 
 GO
 
+CREATE PROCEDURE firma.dodaj_kategorie
+	@Category VARCHAR(200),
+	@SubCategory VARCHAR(200),
+	@ProductName VARCHAR(200),
+	@ProductId VARCHAR(200),
+	@Country VARCHAR(50),
+	@Market VARCHAR(50),
+	@State VARCHAR(50),
+	@City VARCHAR(50),
+	@CustomerName VARCHAR(50),
+	@CustomerId CHAR(12),
+	@Segment VARCHAR(50),
+	@ShipMode VARCHAR(50),
+	@OrderID CHAR(24),
+	@OrderDate DATE,
+	@ShipDate DATE,
+	@PostalCode VARCHAR(50),
+	@Sales MONEY,
+	@Quantity INT,
+	@Discount FLOAT,
+	@Profit MONEY,
+	@ShippingCost FLOAT
+	AS
+	BEGIN
+
+	declare @fk_productCategories INT = NULL;
+	declare @fk_productSubCategories INT = NULL;
+	
+	SELECT @fk_productCategories = id FROM ProductCategories pc WHERE pc.Category = @Category;
+
+	IF @fk_productCategories IS NULL
+	BEGIN
+		INSERT INTO ProductCategories(Category) VALUES (@Category);
+		SELECT @fk_productCategories = SCOPE_IDENTITY();
+	END
+	
+	SELECT @fk_productSubCategories = id FROM ProductSubCategories psc WHERE psc.SubCategory = @SubCategory
+	IF @fk_productSubCategories IS NULL
+	BEGIN
+		INSERT INTO ProductSubCategories(SubCategory, fk_productCategories) VALUES (@SubCategory, @fk_productCategories)
+		SELECT @fk_productSubCategories = SCOPE_IDENTITY();
+	END
+
+	declare @fk_product CHAR(11)
+
+	SELECT @fk_product = ProductId FROM Products p WHERE p.ProductName = @ProductName OR p.ProductId = @ProductId
+	IF @fk_product IS NULL
+	BEGIN
+		INSERT INTO Products(ProductId, ProductName, fk_productSubCategories) VALUES (@ProductId, @ProductName, @fk_productSubCategories)
+		SELECT @fk_product = SCOPE_IDENTITY()
+	END
+
+	declare @fk_markets INT
+	declare @fk_country INT
+
+	SELECT @fk_markets = id FROM Markets m WHERE m.Market = @Market
+	IF @fk_markets IS NULL
+	BEGIN
+		INSERT INTO Markets (Market) VALUES (@Market)
+		SELECT @fk_markets = SCOPE_IDENTITY()
+	END
+
+	SELECT @fk_country = id FROM Countries c WHERE c.Country = @Country
+	IF @fk_country IS NULL
+	BEGIN
+		INSERT INTO Countries (Country) VALUES (@Country)
+		SELECT @fk_country = SCOPE_IDENTITY()
+	END
+
+	declare @fk_geography INT
+
+	SELECT 1 FROM Geography g WHERE g.fk_markets = @fk_markets AND g.fk_country = @fk_country
+	IF @fk_geography IS NULL
+	BEGIN
+		INSERT INTO Geography (fk_markets, fk_country) VALUES (@fk_markets, @fk_country)
+		SELECT @fk_geography = SCOPE_IDENTITY()
+	END
+	
+	declare @fk_state INT = NULL
+	SELECT @fk_state = id FROM States s WHERE s.State = @State
+	IF @fk_state IS NULL
+	BEGIN
+		INSERT INTO States(State, fk_country) VALUES (@State, @fk_country)
+		SELECT @fk_state = SCOPE_IDENTITY()
+	END
+
+	declare @fk_city INT = NULL
+	SELECT @fk_city = id FROM Cities c WHERE c.City = @City
+	
+	IF @fk_city IS NULL
+	BEGIN
+		INSERT INTO Cities(City, fk_state) VALUES (@City, @fk_state)
+		SELECT @fk_city = SCOPE_IDENTITY()
+	END
+
+	declare @fk_customer INT = NULL
+	SELECT @fk_customer = id FROM Customers c WHERE c.CustomerName = @CustomerName OR c.ID = @CustomerId
+	IF @fk_customer IS NULL
+	BEGIN
+		INSERT INTO Customers(id, CustomerName) VALUES (@CustomerId, @CustomerName)
+		SELECT @fk_customer = SCOPE_IDENTITY()
+	END
+
+	declare @fk_segment INT = NULL
+	SELECT @fk_segment = id FROM Segments s WHERE s.Segment = @Segment
+	IF @fk_segment IS NULL
+	BEGIN
+		INSERT INTO Segments(Segment) VALUES (@Segment)
+		SELECT @fk_segment = SCOPE_IDENTITY()
+	END
+
+	declare @fk_shipMode INT = NULL
+	SELECT @fk_shipMode = id FROM ShipModes sm WHERE sm.ShipMode = @ShipMode
+	IF @fk_shipMode IS NULL
+	BEGIN
+		INSERT INTO ShipModes(ShipMode) VALUES (@ShipMode)
+		SELECT @fk_shipMode = SCOPE_IDENTITY()
+	END
+	
+	INSERT INTO Orders(
+		OrderID, 
+		OrderDate,
+		ShipDate,
+		fk_customer,
+		fk_segment,
+		fk_shipMode,
+		PostalCode,
+		fk_city,
+		fk_state
+	) VALUES (
+		@OrderID,
+		@OrderDate,
+		@ShipDate,
+		@CustomerId,
+		@fk_segment,
+		@fk_shipMode,
+		@PostalCode,
+		@fk_city,
+		@fk_state
+	)
+
+	declare @fk_order INT = NULL
+	SELECT @fk_order = SCOPE_IDENTITY()
+	
+	INSERT INTO OrderedProducts(
+		fk_order,
+		fk_product,
+		Sales,
+		Quantity,
+		Discount,
+		Profit,
+		ShippingCost
+	) VALUES (
+		@OrderID,
+		@ProductId,
+		@Sales,
+		@Quantity,
+		@Discount,
+		@Profit,
+		@ShippingCost
+	)
+	END
+GO
+
+EXEC dziedziczak.firma.dodaj_kategorie 'Technology', 'Phones', 'Samsung Smart Phone, Cordless', 'TEC-PH-5839', 'Brazil', '', 'Rio Grande do Norte', 'Açu', 'Carl Ludwig', 'CL-1189018', 'Consumer', 'Same Day', 'US-2013-CL1189018-41459', '7/4/2013', '7/4/2013', '', '$1,363.20', 0, 0.6, '-$1,806.24', 255.173
+EXEC dziedziczak.firma.dodaj_kategorie 'Technology', 'Phones', 'Samsung Smart Phone, Cordless', 'TEC-PH-5839', 'Brazil', '', 'Rio Grande do Norte', 'Açu', 'Carl Ludwig', 'CL-1189018', 'Consumer', 'Same Day', 'US-2013-CL1189018-41459', '7/4/2013', '7/4/2013', '', '$1,363.20', 0, 0.6, '-$1,806.24', 255.173
+EXEC dziedziczak.firma.dodaj_kategorie 'Furniture', 'Bookcases', 'Bush Library with Doors, Mobile', 'FUR-BO-3640', 'Iraq', '', 'Al Qadisiyah', 'Ad Diwaniyah', 'Evan Henry', 'EH-418561', 'Consumer', 'First Class', 'IZ-2015-EH418561-42173', '6/18/2015', '6/21/2015', '', '$1,467.36', 0, 0, '$469.44', 243.14
 
 
