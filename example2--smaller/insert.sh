@@ -25,6 +25,5 @@ while IFS= read -r order; do
   SubCategory=$(echo $order | cut -d ';' -f 19 | sed "s/'//g" ) ;
   ProductName=$(echo $order | cut -d ';' -f 20 | sed "s/'//g"  )
 
-  echo "EXEC dziedziczak.firma.dodaj_kategorie '$Category', '$SubCategory', '$ProductName', '$ProductID', '$Country', '$Market', '$State', '$City', '$CustomerName', '$CustomerID', '$Segment', '$ShipMode', '$OrderID', '$OrderDate', '$ShipDate', '$postalCode', '$Sales', 0, $Discount, '$Profit', $ShippingCost"
-  echo GO
+  echo "EXEC dziedziczak.firma.dodaj_z_xls '$Category', '$SubCategory', '$ProductName', '$ProductID', '$Country', '$Market', '$State', '$City', '$CustomerName', '$CustomerID', '$Segment', '$ShipMode', '$OrderID', '$OrderDate', '$ShipDate', '$postalCode', '$Sales', $Quantity, $Discount, '$Profit', $ShippingCost"
 done < merger_orders_products_geography.csv
