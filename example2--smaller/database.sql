@@ -201,12 +201,12 @@ Tabela zawiera informację o statnach w danym państwie.', 'schema', N'firma', '
 
 GO
 
-IF EXISTS(SELECT 1 FROM dziedziczak.sys.procedures p WHERE Name = 'dodaj_kategorie')
-DROP PROCEDURE firma.dodaj_kategorie
+IF EXISTS(SELECT 1 FROM dziedziczak.sys.procedures p WHERE Name = 'dodaj_z_xls')
+DROP PROCEDURE firma.dodaj_z_xls
 
 GO
 
-CREATE PROCEDURE firma.dodaj_kategorie
+CREATE PROCEDURE firma.dodaj_z_xls
 	@Category VARCHAR(200),
 	@SubCategory VARCHAR(200),
 	@ProductName VARCHAR(200),
@@ -229,12 +229,12 @@ CREATE PROCEDURE firma.dodaj_kategorie
 	@Profit MONEY,
 	@ShippingCost FLOAT
 	AS
-	BEGIN
+	BEGIN TRANSACTION
 
-	declare @fk_productCategories INT = NULL;
-	declare @fk_productSubCategories INT = NULL;
+	declare @fk_productCategories INT = NULL
+	declare @fk_productSubCategories INT = NULL
 	
-	SELECT @fk_productCategories = id FROM ProductCategories pc WHERE pc.Category = @Category;
+	SELECT @fk_productCategories = id FROM ProductCategories pc WHERE pc.Category = @Category
 
 	IF @fk_productCategories IS NULL
 	BEGIN
@@ -285,7 +285,7 @@ CREATE PROCEDURE firma.dodaj_kategorie
 	END
 	
 	declare @fk_state INT = NULL
-	SELECT @fk_state = id FROM States s WHERE s.State = @State
+	SELECT @fk_state = s.id FROM States s WHERE s.State = @State
 	IF @fk_state IS NULL
 	BEGIN
 		INSERT INTO States(State, fk_country) VALUES (@State, @fk_country)
@@ -293,8 +293,7 @@ CREATE PROCEDURE firma.dodaj_kategorie
 	END
 
 	declare @fk_city INT = NULL
-	SELECT @fk_city = id FROM Cities c WHERE c.City = @City
-	
+	SELECT @fk_city = c.id FROM Cities c WHERE c.City = @City
 	IF @fk_city IS NULL
 	BEGIN
 		INSERT INTO Cities(City, fk_state) VALUES (@City, @fk_state)
@@ -367,11 +366,163 @@ CREATE PROCEDURE firma.dodaj_kategorie
 		@Profit,
 		@ShippingCost
 	)
+	IF @@ERROR = 0  
+	BEGIN
+	COMMIT
+	END
+	ELSE
+	BEGIN
+	ROLLBACK
+	END
+
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Technology', 'Phones', 'Samsung Smart Phone, Cordless', 'TEC-PH-5839', 'Brazil', '', 'Rio Grande do Norte', 'Açu', 'Carl Ludwig', 'CL-1189018', 'Consumer', 'Same Day', 'US-2013-CL1189018-41459', '7/4/2013', '7/4/2013', '', '$1,363.20', 0, 0.6, '-$1,806.24', 255.173
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Furniture', 'Bookcases', 'Bush Library with Doors, Mobile', 'FUR-BO-3640', 'Iraq', '', 'Al Qadisiyah', 'Ad Diwaniyah', 'Evan Henry', 'EH-418561', 'Consumer', 'First Class', 'IZ-2015-EH418561-42173', '6/18/2015', '6/21/2015', '', '$1,467.36', 0, 0, '$469.44', 243.14
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Furniture', 'Bookcases', 'Bush Library with Doors, Mobile', 'FUR-BO-3640', 'Australia', '', 'South Australia', 'Adelaide', 'Karen Seio', 'KS-163007', 'Corporate', 'First Class', 'IN-2014-KS163007-41912', '9/30/2014', '10/3/2014', '', '$1,320.62', 0, 0.1, '$484.22', 410.88
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Technology', 'Copiers', 'Canon Wireless Fax, High-Speed', 'TEC-CO-3709', 'Australia', '', 'South Australia', 'Adelaide', 'Jason Klamczynski', 'JK-153257', 'Corporate', 'Second Class', 'ID-2014-JK153257-41984', '12/11/2014', '12/14/2014', '', '$1,695.87', 0, 0.1, '-$37.83', 498.62
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Technology', 'Copiers', 'Brother Wireless Fax, Digital', 'TEC-CO-3609', 'Australia', '', 'South Australia', 'Adelaide', 'Adrian Barton', 'AB-101057', 'Consumer', 'Standard Class', 'IN-2015-AB101057-42153', '5/29/2015', '6/5/2015', '', '$1,703.03', 0, 0.1, '$737.93', 332.14
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Furniture', 'Chairs', 'Harbour Creations Executive Leather Armchair, Black', 'FUR-CH-4531', 'Australia', '', 'South Australia', 'Adelaide', 'Bart Folk', 'BF-110807', 'Consumer', 'Second Class', 'IN-2014-BF110807-41976', '12/3/2014', '12/6/2014', '', '$1,705.00', 0, 0.1, '$378.88', 403.46
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Technology', 'Copiers', 'HP Wireless Fax, Digital', 'TEC-CO-4790', 'Australia', '', 'South Australia', 'Adelaide', 'Chad McGuire', 'CM-121157', 'Consumer', 'First Class', 'IN-2014-CM121157-41913', '10/1/2014', '10/2/2014', '', '$1,943.19', 0, 0.1, '$258.93', 499.62
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Office Supplies', 'Appliances', 'Hoover Stove, White', 'OFF-AP-4745', 'Australia', '', 'South Australia', 'Adelaide', 'Claire Gute', 'CG-125207', 'Consumer', 'Standard Class', 'IN-2015-CG125207-42077', '3/14/2015', '3/18/2015', '', '$3,569.64', 0, 0.1, '$674.16', 458.54
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Office Supplies', 'Storage', 'Tenex Trays, Industrial', 'OFF-ST-6282', 'Australia', '', 'South Australia', 'Adelaide', 'Michelle Huthwaite', 'MH-180257', 'Consumer', 'Second Class', 'IN-2013-MH180257-41443', '6/18/2013', '6/20/2013', '', '$689.09', 0, 0.1, '-$53.89', 204.72
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Office Supplies', 'Storage', 'Rogers Lockers, Blue', 'OFF-ST-5700', 'Australia', '', 'South Australia', 'Adelaide', 'Christopher Martinez', 'CM-123857', 'Consumer', 'Second Class', 'ID-2015-CM123857-42208', '7/23/2015', '7/25/2015', '', '$952.29', 0, 0.1, '-$53.01', 223.43
+GO
+EXEC dziedziczak.firma.dodaj_z_xls 'Furniture', 'Chairs', 'Hon Executive Leather Armchair, Red', 'FUR-CH-4656', 'India', '', 'Uttar Pradesh', 'Agra', 'Ted Trevino', 'TT-2107058', 'Consumer', 'Standard Class', 'IN-2013-TT2107058-41551', '10/4/2013', '10/9/2013', '', '$2,756.34', 0, 0, '$413.28', 369.4
+GO
+
+IF EXISTS(SELECT 1 FROM dziedziczak.sys.procedures p WHERE Name = 'dodaj_zamowienie')
+DROP PROCEDURE firma.dodaj_zamowienie
+
+GO
+
+CREATE PROCEDURE firma.dodaj_zamowienie
+	@Products as XML,
+	@OrderDate DATE,
+	@ShipDate DATE,
+	@OrderID CHAR(24),
+	@CustomerName VARCHAR(50),
+	@Segment VARCHAR(50),
+	@ShipMode VARCHAR(50),
+	@PostalCode VARCHAR(50),
+	@City VARCHAR(50)
+	AS
+	
+	BEGIN TRANSACTION 
+
+	declare @fk_customer VARCHAR(50) = NULL
+	SELECT @fk_customer = id FROM Customers c WHERE c.CustomerName = @CustomerName 
+	IF @fk_customer IS NULL
+	BEGIN
+		ROLLBACK
+	END
+
+	declare @fk_segment INT = NULL
+	SELECT @fk_segment = id FROM Segments s WHERE s.Segment = @Segment
+	IF @fk_segment IS NULL
+	BEGIN
+		ROLLBACK
+	END
+
+	declare @fk_shipMode INT = NULL
+	SELECT @fk_shipMode = id FROM ShipModes sm WHERE sm.ShipMode = @ShipMode
+	IF @fk_shipMode IS NULL
+	BEGIN
+		ROLLBACK
+	END
+
+	declare @fk_city INT = NULL
+	declare @fk_state INT = NULL
+	SELECT @fk_city = c.id, @fk_state = c.fk_state FROM Cities c LEFT JOIN States s ON s.id = c.fk_state WHERE c.City = @City
+	IF @fk_city IS NULL AND @fk_state IS NOT NULL
+	BEGIN
+		ROLLBACK
+	END
+
+	INSERT INTO Orders(
+		OrderID, 
+		OrderDate,
+		ShipDate,
+		fk_customer,
+		fk_segment,
+		fk_shipMode,
+		PostalCode,
+		fk_city,
+		fk_state
+	) VALUES (
+		@OrderID,
+		@OrderDate,
+		@ShipDate,
+		@fk_customer,
+		@fk_segment,
+		@fk_shipMode,
+		@PostalCode,
+		@fk_city,
+		@fk_state
+	)
+
+	declare @numberOfProducts INT = 0
+	select 
+	  @numberOfProducts = count(N.value('id[1]', 'varchar(200)'))
+	from @Products.nodes('/root/product') as T(N)
+	declare @tempOrders table (id INT IDENTITY(1, 1) PRIMARY KEY, OrderId CHAR(24))
+
+	WHILE (select count(*) from @tempOrders) != @numberOfProducts
+	BEGIN
+		insert @tempOrders values (@OrderID)
+	END
+
+	INSERT INTO OrderedProducts (
+		fk_order,
+		fk_product,
+		Sales,
+		Quantity,
+		Discount,
+		Profit,
+		ShippingCost)
+	SELECT tmpOrders.OrderId,
+		tmpProducts.fk_product,
+		tmpProducts.Sales,
+		tmpProducts.Quantity,
+		tmpProducts.Discount,
+		tmpProducts.Profit,
+		tmpProducts.ShippingCost
+		FROM (select 
+	  ROW_NUMBER() OVER(ORDER BY N.value('id[1]', 'varchar(200)')) AS num_row,
+	  N.value('id[1]', 'varchar(200)') as fk_product,
+	  N.value('sales[1]', 'varchar(50)') as Sales,
+	  N.value('quantity[1]', 'varchar(50)') as Quantity,
+	  N.value('discount[1]', 'varchar(50)') as Discount,
+	  N.value('profit[1]', 'varchar(50)') as Profit,
+	  N.value('shippingCost[1]', 'varchar(50)') as ShippingCost
+	from @Products.nodes('/root/product') as T(N)) as tmpProducts
+		LEFT JOIN (SELECT * FROM @tempOrders) as tmpOrders ON tmpOrders.id = tmpProducts.num_row
+		
+	IF @@ERROR = 0  
+	BEGIN
+	COMMIT
+	END
+	ELSE
+	BEGIN
+	ROLLBACK
 	END
 GO
 
-EXEC dziedziczak.firma.dodaj_kategorie 'Technology', 'Phones', 'Samsung Smart Phone, Cordless', 'TEC-PH-5839', 'Brazil', '', 'Rio Grande do Norte', 'Açu', 'Carl Ludwig', 'CL-1189018', 'Consumer', 'Same Day', 'US-2013-CL1189018-41459', '7/4/2013', '7/4/2013', '', '$1,363.20', 0, 0.6, '-$1,806.24', 255.173
-EXEC dziedziczak.firma.dodaj_kategorie 'Technology', 'Phones', 'Samsung Smart Phone, Cordless', 'TEC-PH-5839', 'Brazil', '', 'Rio Grande do Norte', 'Açu', 'Carl Ludwig', 'CL-1189018', 'Consumer', 'Same Day', 'US-2013-CL1189018-41459', '7/4/2013', '7/4/2013', '', '$1,363.20', 0, 0.6, '-$1,806.24', 255.173
-EXEC dziedziczak.firma.dodaj_kategorie 'Furniture', 'Bookcases', 'Bush Library with Doors, Mobile', 'FUR-BO-3640', 'Iraq', '', 'Al Qadisiyah', 'Ad Diwaniyah', 'Evan Henry', 'EH-418561', 'Consumer', 'First Class', 'IZ-2015-EH418561-42173', '6/18/2015', '6/21/2015', '', '$1,467.36', 0, 0, '$469.44', 243.14
+DECLARE @Products as XML
+SET @Products = N'<root>
+	<product><id>TEC-PH-5839</id><sales>10</sales><quantity>10</quantity><discount>0</discount><profit>300</profit><shippingCost>30</shippingCost></product>
+	<product><id>TEC-PH-5839</id><sales>10</sales><quantity>10</quantity><discount>0</discount><profit>300</profit><shippingCost>30</shippingCost></product>
+	<product><id>TEC-PH-5839</id><sales>10</sales><quantity>10</quantity><discount>0</discount><profit>300</profit><shippingCost>30</shippingCost></product>
+</root>'
 
+EXEC dziedziczak.firma.dodaj_zamowienie @Products, '7/4/2013', '7/4/2013', 'IN-2015-AB101057-66655', 'Adrian Barton', 'Consumer', 'First Class', '9939', 'Adelaide'
 
+GO
