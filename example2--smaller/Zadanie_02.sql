@@ -449,6 +449,9 @@ CREATE PROCEDURE firma.dodaj_z_xls
 
 GO
 
+CREATE COLUMNSTORE INDEX colindex_Orders ON firma.Cities(fk_state, City);
+GO
+
 EXEC dziedziczak.firma.dodaj_z_xls 'Technology', 'Phones', 'Samsung Smart Phone, Cordless', 'TEC-PH-5839', 'Brazil', '', 'Rio Grande do Norte', 'Açu', 'Carl Ludwig', 'CL-1189018', 'Consumer', 'Same Day', 'US-2013-CL1189018-41459', '7/4/2013', '7/4/2013', '', '$1,363.20', 8, 0.6, '-$1,806.24', 255.173
 EXEC dziedziczak.firma.dodaj_z_xls 'Furniture', 'Bookcases', 'Bush Library with Doors, Mobile', 'FUR-BO-3640', 'Iraq', '', 'Al Qadisiyah', 'Ad Diwaniyah', 'Evan Henry', 'EH-418561', 'Consumer', 'First Class', 'IZ-2015-EH418561-42173', '6/18/2015', '6/21/2015', '', '$1,467.36', 4, 0, '$469.44', 243.14
 EXEC dziedziczak.firma.dodaj_z_xls 'Furniture', 'Bookcases', 'Bush Library with Doors, Mobile', 'FUR-BO-3640', 'Australia', '', 'South Australia', 'Adelaide', 'Karen Seio', 'KS-163007', 'Corporate', 'First Class', 'IN-2014-KS163007-41912', '9/30/2014', '10/3/2014', '', '$1,320.62', 4, 0.1, '$484.22', 410.88
@@ -707,13 +710,29 @@ Głównie swoją wiedzę oparłem na materiałach:
 https://youtu.be/tLD5tCP4jqM
 https://youtu.be/lg8S2s_yTh4
 https://stackoverflow.com/questions/27387603/how-nonclustered-index-works-in-sql-server
-
-Jeden z prowadzących zasugerował również użycie Sparse Columns jako rozwiązania tego zadania
-jednak zgodnie z dokumentacją https://docs.microsoft.com/en-us/sql/relational-databases/tables/use-sparse-columns?view=sql-server-ver15
-Sparse Column nie służy do optymalizacji zapytań lecz miejsca zajmującego przez kolumny z wartościami NULL.
- */
+*/
 
 -- Zad 3.3
+/*
+3. Utworzenie indeksu kolumnego 
+ 
+Indeksy kolumnowe stosuje się w momencie gdy chcemy zwiększyć szybkość przeszukiwania dużych
+tabel. Najlepiej stosować je gdy wymagane zapytania SQL operują na dużych zbiorach i zwracają
+duże najczęściej grupowane lub agregowane.  
+
+O ile dokumentacja zawiera przykłady jak używać takich indeksów to brakuje w niej 
+praktycznego ich zastosowania. Bardzo dobrym źródłem jakie znalazłem, gdzie rzeczywiście
+można zobaczyć jak zachowuje się taki indeks jest ten kanał https://youtu.be/x1WNQ1mNiAk
+
+Osoba przeprowadzająca test zwiększyła prędkość przeszukiwania tabeli z 4sekund do 700ms co
+pokazuje jak bardzo dobrze zastosowane indeksy kolumnowe mogą przyśpieszyć wyszukiwanie.
+
+Warto więc jest ich używać i gdy optymalizacja bazy danych poprzez zmianę jej struktury
+jest nie możliwa taki indeks może zdecydowanie zwiększyć jej wydajność. 
+
+ */
+
+CREATE COLUMNSTORE INDEX colindex_Orders ON firma.Cities(fk_state, City);
 
 -- Zad 3.4
 
@@ -736,6 +755,7 @@ GO
 SELECT * FROM firma.wybierzZamowienia('France', 'Machines');
 -- Możliwe jest także przekazanie % by wybrać wszystkie SubCategory
 SELECT * FROM firma.wybierzZamowienia('Iraq', '%');
+SELECT * FROM firma.wybierzZamowienia('%', 'Machines');
 
 -- Zad 3.4
 /* Utworzenie procedury lub funkcji zwracającej dwa najnowsze zamówienia 
