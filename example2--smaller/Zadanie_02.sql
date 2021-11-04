@@ -674,10 +674,88 @@ GO
 DECLARE @Products as XML
 SET @Products = N'<root>
 	<product><id>TEC-PH-5839</id><sales>540</sales><quantity>10</quantity><discount>0</discount><profit>300</profit><shippingCost>30</shippingCost></product>
-	<product><id>TEC-PH-5839</id><sales>500</sales><quantity>1000</quantity><discount>0</discount><profit>300</profit><shippingCost>30</shippingCost></product>
+	<product><id>TEC-PH-5336</id><sales>500</sales><quantity>1000</quantity><discount>0</discount><profit>300</profit><shippingCost>30</shippingCost></product>
 	<product><id>TEC-PH-5839</id><sales>340</sales><quantity>10</quantity><discount>0</discount><profit>300</profit><shippingCost>30</shippingCost></product>
 </root>'
 
 EXEC dziedziczak.firma.dodaj_zamowienie @Products, '7/4/2013', '7/4/2013', 'IN-2015-AB101057-66655', 'Adrian Barton', 'Consumer', 'First Class', '9939', 'Adelaide'
 
 GO
+
+/* Zad3.1
+
+Indeksy zgrupowane i niezgrupowane
+
+Jeżeli chodzi o indeks zgrupowany to w SQL Server jest on domyślnie dodawany do każdej kolumny zawierające Primary Key.
+
+Indeks niezgrupowany nakładam na tabelę Customers z kolumną CustomerName.
+Robię tak dlatego, że zawiera ona bardzo dużo powtarzających się wartości, które 
+powiązane są z "id". W ten sposób wyszukiwanie klientów po ich nazwach będzie bardziej wydajne. 
+ */
+
+CREATE NONCLUSTERED INDEX IDX_V1 ON dziedziczak.firma.Customers (CustomerName); 
+
+/* Zad 3.2
+
+Zgodnie z dokumentacją SQL Server nie wspiera tworzenia indeksów gęstych i rzadkich, które 
+byłyby możliwe do stworzenia przez jakieś słowa kluczowe języka TSQL. 
+
+Poczytałem jednak o tym i znazlazłem materiały stawowiące, że każdy indeks niezgrupowany jest gęsty
+oraz, że każdy indeks zgrupowany jest rzadki.  
+
+Głównie swoją wiedzę oparłem na materiałach:
+https://youtu.be/tLD5tCP4jqM
+https://youtu.be/lg8S2s_yTh4
+https://stackoverflow.com/questions/27387603/how-nonclustered-index-works-in-sql-server
+
+Jeden z prowadzących zasugerował również użycie Sparse Columns jako rozwiązania tego zadania
+jednak zgodnie z dokumentacją https://docs.microsoft.com/en-us/sql/relational-databases/tables/use-sparse-columns?view=sql-server-ver15
+Sparse Column nie służy do optymalizacji zapytań lecz miejsca zajmującego przez kolumny z wartościami NULL.
+ */
+
+-- Zad 3.3
+
+-- Zad 3.4
+
+CREATE FUNCTION firma.wybierzZamowienia(@Country VARCHAR(50), @SubCategory VARCHAR(50))
+RETURNS TABLE
+AS
+RETURN (
+ SELECT co.Country, psc.SubCategory, o.OrderID, o.OrderDate, o.ShipDate, p.ProductName, op.Sales, op.Quantity, op.Profit from dziedziczak.firma.OrderedProducts op
+	LEFT JOIN dziedziczak.firma.Orders o ON o.OrderID = op.fk_order 
+	LEFT JOIN dziedziczak.firma.Products p ON p.ProductId = op.fk_product
+	LEFT JOIN dziedziczak.firma.ProductSubCategories psc ON psc.id = p.fk_productSubCategories
+	LEFT JOIN dziedziczak.firma.Cities c ON o.fk_city = c.id 
+	LEFT JOIN dziedziczak.firma.States s ON s.id = c.fk_state 
+	LEFT JOIN dziedziczak.firma.Countries co ON co.id = s.fk_country
+	WHERE co.Country LIKE @Country AND psc.SubCategory LIKE @SubCategory
+)
+
+GO
+
+SELECT * FROM firma.wybierzZamowienia('France', 'Machines');
+-- Możliwe jest także przekazanie % by wybrać wszystkie SubCategory
+SELECT * FROM firma.wybierzZamowienia('Iraq', '%');
+
+-- Zad 3.4
+/* Utworzenie procedury lub funkcji zwracającej dwa najnowsze zamówienia 
+ * (wymagane kolumny wynikowe: order id, order date, product name, sales, customer name)
+ * dla każdego klienta w segmencie Consumer (segment = Consumer).
+ */ 
+
+CREATE FUNCTION firma.wybierzZamowieniaDlaConsumer()
+RETURNS TABLE
+AS
+RETURN (
+SELECT TOP 2 s.Segment, o.OrderID, o.OrderDate, p.ProductName, op.Sales, c.CustomerName FROM dziedziczak.firma.OrderedProducts op 
+	LEFT JOIN dziedziczak.firma.Orders o ON o.OrderID = op.fk_order 
+	LEFT JOIN dziedziczak.firma.Products p ON p.ProductId = op.fk_product 
+	LEFT JOIN dziedziczak.firma.Customers c ON c.id = o.fk_customer 
+	LEFT JOIN dziedziczak.firma.Segments s ON s.id = o.fk_segment
+	WHERE s.Segment LIKE 'Consumer'
+	ORDER BY o.OrderDate DESC
+)
+GO
+
+SELECT * FROM firma.wybierzZamowieniaDlaConsumer();
+
