@@ -47,7 +47,7 @@ CREATE TABLE dziedziczak.OrderDB.Markets (
 
 CREATE TABLE dziedziczak.OrderDB.Orders (
 	-- Ponieważ OrderID jest PRIMARY KEY nie muszę dawać constraint UNIQUE
-	OrderID CHAR(24) PRIMARY KEY NOT NULL,
+	OrderID CHAR(24) CONSTRAINT PK_Orders PRIMARY KEY CLUSTERED (OrderID),
 	OrderDate DATE NOT NULL,
 	ShipDate DATE NOT NULL,
 	fk_shipMode INT NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE dziedziczak.OrderDB.States (
 );
 
 CREATE TABLE dziedziczak.OrderDB.OrderedProducts (
-	id INT IDENTITY(1,1) PRIMARY KEY,
+	id INT IDENTITY(1,1) CONSTRAINT PK_OrderedProducts PRIMARY KEY CLUSTERED (id),
 	fk_order CHAR(24) NOT NULL,
 	fk_product CHAR(11) NOT NULL,
 	Sales MONEY NOT NULL,
@@ -99,6 +99,7 @@ CREATE TABLE dziedziczak.OrderDB.OrderedProducts (
 	CONSTRAINT ck_Quantity CHECK (Quantity > 0),
 	CONSTRAINT ck_ShippingCost CHECK (ShippingCost > 0),
 )
+
 
 
 ALTER table dziedziczak.OrderDB.ProductSubCategories add constraint fk_productSubCategories_productCategories foreign key (fk_productCategories) references dziedziczak.OrderDB.ProductCategories(id);
@@ -693,7 +694,7 @@ Robię tak dlatego, że zawiera ona bardzo dużo powtarzających się wartości
 powiązane są z "id". W ten sposób wyszukiwanie klientów po ich nazwach będzie bardziej wydajne. 
  */
 
-CREATE NONCLUSTERED INDEX IDX_V1 ON dziedziczak.OrderDB.Customers (CustomerName); 
+-- CREATE NONCLUSTERED INDEX IDX_V1 ON dziedziczak.OrderDB.Customers (CustomerName); 
 
 /* Zad 3.2
 
@@ -852,6 +853,15 @@ WHERE t.type = 'U'
 ORDER BY p.rows desc
 
 -- Zapytanie zwróciło, że najwięcej rekordów jest w tabeli OrderedProducts oraz Geography a nastepnie Orders.
+/*
+name   |name                |name                          |type|index_id|partition_number|rows|
+-------+--------------------+------------------------------+----+--------+----------------+----+
+OrderDB|OrderedProducts     |PK_OrderedProducts            |   1|       1|               1| 105|
+OrderDB|Geography           |PK__Geograph__3213E83FBEF79483|   1|       1|               1| 102|
+OrderDB|Orders              |PK_Orders                     |   2|       5|               1|  98|
+OrderDB|Customers           |PK__Customer__3213E83FD0F8EBE2|   1|       1|               1|  97|
+OrderDB|Products            |PK__Products__B40CC6CD51340D5C|   1|       1|               1|  90|
+ */
 
 -- Za pomocą tych dwóch zapytań sprawdzam, która metoda kompresji będzie lepsza PAGE czy ROW.
 EXEC sp_estimate_data_compression_savings 
@@ -873,8 +883,10 @@ EXEC sp_estimate_data_compression_savings
 -- tylko ilość bajtów, którą musi. 
 /*
  * Uses only the bytes that are needed. For example, if a value can be stored in 1 byte, storage will take only 1 byte.
+ * https://docs.microsoft.com/en-us/sql/relational-databases/data-compression/row-compression-implementation?view=sql-server-ver15
  */
-ALTER INDEX PK__OrderedP__3213E83FA00742D7 
+    
+ALTER INDEX PK_OrderedProducts 
 	ON OrderDB.OrderedProducts 
 	REBUILD PARTITION = ALL 
 	WITH (DATA_COMPRESSION = ROW);
@@ -886,10 +898,112 @@ EXEC sp_estimate_data_compression_savings
     @object_name = 'OrderedProducts', 
     @index_id = NULL, 
     @partition_number = NULL, 
-    @data_compression = 'PAGE'
+    @data_compression = 'ROW'
 
+-- Zad 4.4
+/*
+ * 4. Włączenie partycjonowania (w komentarzu skryptu wynikowego dla Zadanie 04 należy
+ *  uzasadnić rodzaj zastasowanego partycjonowania oraz jego praktyczne przeznaczenie)
+ */
 
+/*
+ W zadaniu wykorzystam partycjonowanie horyzontalne, które zostanie użytę dla tabeli zawierającej
+ Daty. Takie partycjonowanie jest szczegónie pomocne gdy mamy dużą ilość przedziałów dat a 
+ zapytania, które zostaną na tej tabeli wykorzystane często wykonywane są na okresach czasu.
+ 
+ https://www.mssqltips.com/sqlservertip/2888/how-to-partition-an-existing-sql-server-table/
+*/
 
+GO
+-- Najpierw sprawdzam jak wyglądają statystyki zapytania Orders dla dat
+SET SHOWPLAN_XML ON
+GO
+SELECT o.*
+FROM OrderDB.Orders o 
+WHERE o.OrderDate  BETWEEN '20140101' AND '20141230';
 
+-- <RelOp NodeId="0" PhysicalOp="Clustered Index Seek" LogicalOp="Clustered Index Seek" EstimateRows="27" EstimatedRowsRead="27" EstimateIO="0.00340467" EstimateCPU="0.0001867" AvgRowSize="95" EstimatedTotalSubtreeCost="0.00359137" TableCardinality="98" Parallel="0" Partitioned="1" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row">
+-- Statystyka pokazuje, że zapytanie nie odwołuje się do wielu partycji.
 
+GO
+SET SHOWPLAN_XML OFF
+GO
 
+-- Najpierw tworzę funkcję partycjonującą daty dla poszczególnych lat od 2011 do 2015
+
+CREATE PARTITION FUNCTION udf_partitionByOrderDateKey(date) 
+AS RANGE LEFT 
+FOR VALUES(
+	 '20111231'
+	 ,'20121231'
+	 ,'20131231'
+	 ,'20141231'
+	 ,'20151231'
+	 );
+GO
+
+CREATE PARTITION SCHEME ups_partitionOrderDateKey
+    AS PARTITION udf_partitionByOrderDateKey
+    ALL TO ([PRIMARY])
+GO
+
+-- Usuwam ograniczenia na tabelach powiązancy aby móc modyfikować Primary Key index
+ALTER TABLE OrderDB.Orders DROP CONSTRAINT fk_orders_shipMode ;
+ALTER TABLE OrderDB.Orders DROP CONSTRAINT fk_corders_customer ;
+ALTER TABLE OrderDB.Orders DROP CONSTRAINT fk_orders_segment ;
+ALTER TABLE OrderDB.Orders DROP CONSTRAINT fk_orders_city ;
+ALTER TABLE OrderDB.OrderedProducts DROP CONSTRAINT fk_orderedProducts_orders ;
+
+GO
+
+-- Usuwam primary key index
+ALTER TABLE OrderDB.Orders DROP CONSTRAINT PK_Orders;
+
+-- Nakładam Primary key index aby posortować zamówienia
+ALTER TABLE OrderDB.Orders ADD CONSTRAINT PK_Orders PRIMARY KEY NONCLUSTERED  (OrderId)
+   WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, 
+         ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+GO
+
+-- tworzę indek zgrupowany na OrderDate 
+CREATE CLUSTERED INDEX IX_Orders_orderDate ON OrderDB.Orders (OrderDate)
+  WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, 
+        ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
+  ON ups_partitionOrderDateKey(OrderDate)
+
+select * from sys.partitions
+where OBJECT_ID=OBJECT_ID('OrderDB.Orders')
+
+-- Jak widać klauzula select zwróciła partycje tabeli Orders
+/*
+partition_id     |object_id|index_id|partition_number|hobt_id          |rows|filestream_filegroup_id|data_compression|data_compression_desc|
+-----------------+---------+--------+----------------+-----------------+----+-----------------------+----------------+---------------------+
+72057594044809216|837578022|       1|               1|72057594044809216|   0|                      0|               0|NONE                 |
+72057594044874752|837578022|       1|               2|72057594044874752|  11|                      0|               0|NONE                 |
+72057594044940288|837578022|       1|               3|72057594044940288|  27|                      0|               0|NONE                 |
+72057594045005824|837578022|       1|               4|72057594045005824|  27|                      0|               0|NONE                 |
+72057594045071360|837578022|       1|               5|72057594045071360|  32|                      0|               0|NONE                 |
+72057594045136896|837578022|       1|               6|72057594045136896|   1|                      0|               0|NONE                 |
+72057594045202432|837578022|       5|               1|72057594045202432|  98|                      0|               0|NONE                 |
+ */
+
+-- Teraz sprawdzę jakie partycje są odpytywane gdy moje zapytanie odnosi się do określonego okresu czasu
+
+SET SHOWPLAN_XML ON
+GO
+SELECT o.*
+FROM OrderDB.Orders o 
+WHERE o.OrderDate  BETWEEN '20110101' AND '20141230';
+
+SET SHOWPLAN_XML OFF
+GO
+
+/*
+Jak widać flaga partycjonowania jest ustawiona na 1 co oznacza, że operacja została wykonana na wielu partycjach.
+Próbowałem uzyskać informację o tym jakie partycje są używane jednak mimo iż używałem SHOWPLAN_XML
+nie uzyskałem dodatkowych danych. Zgodnie z dokumentacją 
+
+<RelOp NodeId="0" PhysicalOp="Clustered Index Seek" LogicalOp="Clustered Index Seek" EstimateRows="65" EstimatedRowsRead="65" EstimateIO="0.0125" EstimateCPU="0.0006995" AvgRowSize="95" EstimatedTotalSubtreeCost="0.0131995" TableCardinality="98" Parallel="0" Partitioned="1" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row">
+
+https://docs.microsoft.com/en-us/sql/relational-databases/query-processing-architecture-guide?view=sql-server-ver15#partitioned-attribute
+ */
