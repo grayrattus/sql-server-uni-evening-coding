@@ -47,7 +47,7 @@ CREATE TABLE dziedziczak.OrderDB.Markets (
 
 CREATE TABLE dziedziczak.OrderDB.Orders (
 	-- Ponieważ OrderID jest PRIMARY KEY nie muszę dawać constraint UNIQUE
-	OrderID CHAR(24) CONSTRAINT PK_Orders PRIMARY KEY CLUSTERED (OrderID),
+	OrderID CHAR(24) PRIMARY KEY NOT NULL,
 	OrderDate DATE NOT NULL,
 	ShipDate DATE NOT NULL,
 	fk_shipMode INT NOT NULL,
@@ -88,7 +88,7 @@ CREATE TABLE dziedziczak.OrderDB.States (
 );
 
 CREATE TABLE dziedziczak.OrderDB.OrderedProducts (
-	id INT IDENTITY(1,1) CONSTRAINT PK_OrderedProducts PRIMARY KEY CLUSTERED (id),
+	id INT IDENTITY(1,1) PRIMARY KEY,
 	fk_order CHAR(24) NOT NULL,
 	fk_product CHAR(11) NOT NULL,
 	Sales MONEY NOT NULL,
@@ -785,7 +785,7 @@ BEGIN
     RETURN
 END
 
-EXECUTE ordersFromMonth
+EXECUTE ordersFromMonth;
 
 -- Zad 4.2
 /*
@@ -814,7 +814,7 @@ AS
 SELECT c.id as CustomerId, c.CustomerName, s.Segment, COUNT_BIG(*) AS COUNT FROM OrderDB.Orders o
 INNER JOIN OrderDB.Customers c ON o.fk_customer = c.id
 INNER JOIN OrderDB.Segments s ON o.fk_segment = s.id
-GROUP BY c.id , c.CustomerName , s.Segment 
+GROUP BY c.id , c.CustomerName , s.Segment;
 GO
 
 CREATE UNIQUE CLUSTERED INDEX i_customerId    
@@ -827,8 +827,6 @@ SELECT * FROM customersWithAtLeastOneOrder
 /*
  3. Włączenie kompresji na dowolnej strukturze bazy 
 (w komentarzu skryptu wynikowego dla Zadanie 04 należy uzsadnić typ zastosowanej kompresji)
-*o
-*
 */
 
 -- Najpierw sprawdzam, które tabele dobrze by było skompresować
@@ -880,16 +878,21 @@ EXEC sp_estimate_data_compression_savings
 
 -- Oba zapytania zwracają taką samą wartość. Może to być spowodowane zbyt małą ilością rekordów.
 -- Dla przykładu ja założę kompresję ROW. Sprawi ona, że typ INT dla Primary key będzie zajmował 
--- tylko ilość bajtów, którą musi. 
+-- tylko ilość bajtów, którą musi. To powinno zmniejszyć ilość miejsca zajmowaną przez klucz główny.
 /*
  * Uses only the bytes that are needed. For example, if a value can be stored in 1 byte, storage will take only 1 byte.
  * https://docs.microsoft.com/en-us/sql/relational-databases/data-compression/row-compression-implementation?view=sql-server-ver15
  */
     
-ALTER INDEX PK_OrderedProducts 
-	ON OrderDB.OrderedProducts 
-	REBUILD PARTITION = ALL 
-	WITH (DATA_COMPRESSION = ROW);
+    
+-- Używam dynaczminego SQL-a ponieważ klucz główny tabeli OrderedProducts ma dynamiczne ID.
+DECLARE @orderedProductsPrimaryKey VARCHAR(100)
+
+SELECT @orderedProductsPrimaryKey = x.name FROM sys.indexes x
+    JOIN sys.objects o ON o.object_id = x.object_id
+WHERE o.name LIKE 'OrderedProducts'
+
+EXEC('ALTER INDEX ' + @orderedProductsPrimaryKey + ' ON OrderDB.OrderedProducts REBUILD PARTITION = ALL WITH (DATA_COMPRESSION = ROW)')
 
 
 -- Po sprawdzeniu widać, że kompresja została użyta. size_with_current_compression_setting jest identyczne jak ten z requested_compression_settting. 
@@ -911,8 +914,14 @@ EXEC sp_estimate_data_compression_savings
  Daty. Takie partycjonowanie jest szczegónie pomocne gdy mamy dużą ilość przedziałów dat a 
  zapytania, które zostaną na tej tabeli wykorzystane często wykonywane są na okresach czasu.
  
+ Takie określenie partycjonowania dla dat powoduje, że zapytania odwołujące się do przedziałów
+ będą wykonywane na partycjach, które zawierają te przedziały. Odpowiednio ustawione partycje
+ np. gdy mamy dane, które są często używane oraz stare dane, które służą tylko do generowania raportów
+ mogą zwiększyć wydajność zapytań.
+ 
  https://www.mssqltips.com/sqlservertip/2888/how-to-partition-an-existing-sql-server-table/
 */
+    sdhfkl;ashdfkljashdfs
 
 GO
 -- Najpierw sprawdzam jak wyglądają statystyki zapytania Orders dla dat
@@ -922,14 +931,14 @@ SELECT o.*
 FROM OrderDB.Orders o 
 WHERE o.OrderDate  BETWEEN '20140101' AND '20141230';
 
--- <RelOp NodeId="0" PhysicalOp="Clustered Index Seek" LogicalOp="Clustered Index Seek" EstimateRows="27" EstimatedRowsRead="27" EstimateIO="0.00340467" EstimateCPU="0.0001867" AvgRowSize="95" EstimatedTotalSubtreeCost="0.00359137" TableCardinality="98" Parallel="0" Partitioned="1" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row">
+-- <RelOp NodeId="0" PhysicalOp="Clustered Index Scan" LogicalOp="Clustered Index Scan" EstimateRows="27" EstimatedRowsRead="98" EstimateIO="0.003125" EstimateCPU="0.0002648" AvgRowSize="95" EstimatedTotalSubtreeCost="0.0033898" TableCardinality="98" Parallel="0" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row">
 -- Statystyka pokazuje, że zapytanie nie odwołuje się do wielu partycji.
 
 GO
-SET SHOWPLAN_XML OFF
+SET SHOWPLAN_XML OFF;
 GO
 
--- Najpierw tworzę funkcję partycjonującą daty dla poszczególnych lat od 2011 do 2015
+-- Następnie tworzę funkcję partycjonującą daty dla poszczególnych lat od 2011 do 2015
 
 CREATE PARTITION FUNCTION udf_partitionByOrderDateKey(date) 
 AS RANGE LEFT 
@@ -957,12 +966,21 @@ ALTER TABLE OrderDB.OrderedProducts DROP CONSTRAINT fk_orderedProducts_orders ;
 GO
 
 -- Usuwam primary key index
-ALTER TABLE OrderDB.Orders DROP CONSTRAINT PK_Orders;
+
+DECLARE @ordersPrimaryKey VARCHAR(100)
+
+SELECT @ordersPrimaryKey = x.name FROM sys.indexes x
+    JOIN sys.objects o ON o.object_id = x.object_id
+WHERE o.name LIKE 'Orders'
+
+EXEC('ALTER TABLE OrderDB.Orders DROP CONSTRAINT ' + @ordersPrimaryKey);
+
 
 -- Nakładam Primary key index aby posortować zamówienia
 ALTER TABLE OrderDB.Orders ADD CONSTRAINT PK_Orders PRIMARY KEY NONCLUSTERED  (OrderId)
    WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, 
          ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+         
 GO
 
 -- tworzę indek zgrupowany na OrderDate 
@@ -971,8 +989,20 @@ CREATE CLUSTERED INDEX IX_Orders_orderDate ON OrderDB.Orders (OrderDate)
         ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) 
   ON ups_partitionOrderDateKey(OrderDate)
 
+-- Przywracam poprzednie ograniczenia
+ALTER table dziedziczak.OrderDB.Orders add constraint fk_orders_shipMode foreign key (fk_shipMode) references dziedziczak.OrderDB.ShipModes(id);
+ALTER table dziedziczak.OrderDB.Orders add constraint fk_corders_customer foreign key (fk_customer) references dziedziczak.OrderDB.Customers(id);
+ALTER table dziedziczak.OrderDB.Orders add constraint fk_orders_segment foreign key (fk_segment) references dziedziczak.OrderDB.Segments(id);
+ALTER table dziedziczak.OrderDB.Orders add constraint fk_orders_city foreign key (fk_city) references dziedziczak.OrderDB.Cities(id);
+
+ALTER table dziedziczak.OrderDB.OrderedProducts add constraint fk_orderedProducts_orders foreign key (fk_order) references dziedziczak.OrderDB.Orders(OrderId);
+
 select * from sys.partitions
 where OBJECT_ID=OBJECT_ID('OrderDB.Orders')
+
+GO
+
+
 
 -- Jak widać klauzula select zwróciła partycje tabeli Orders
 /*
@@ -987,7 +1017,7 @@ partition_id     |object_id|index_id|partition_number|hobt_id          |rows|fil
 72057594045202432|837578022|       5|               1|72057594045202432|  98|                      0|               0|NONE                 |
  */
 
--- Teraz sprawdzę jakie partycje są odpytywane gdy moje zapytanie odnosi się do określonego okresu czasu
+-- Teraz sprawdzę czy zapytanie odnosi się do partycji
 
 SET SHOWPLAN_XML ON
 GO
@@ -995,13 +1025,13 @@ SELECT o.*
 FROM OrderDB.Orders o 
 WHERE o.OrderDate  BETWEEN '20110101' AND '20141230';
 
-SET SHOWPLAN_XML OFF
+SET SHOWPLAN_XML OFF;
 GO
 
 /*
 Jak widać flaga partycjonowania jest ustawiona na 1 co oznacza, że operacja została wykonana na wielu partycjach.
 Próbowałem uzyskać informację o tym jakie partycje są używane jednak mimo iż używałem SHOWPLAN_XML
-nie uzyskałem dodatkowych danych. Zgodnie z dokumentacją 
+nie uzyskałem dodatkowych danych.
 
 <RelOp NodeId="0" PhysicalOp="Clustered Index Seek" LogicalOp="Clustered Index Seek" EstimateRows="65" EstimatedRowsRead="65" EstimateIO="0.0125" EstimateCPU="0.0006995" AvgRowSize="95" EstimatedTotalSubtreeCost="0.0131995" TableCardinality="98" Parallel="0" Partitioned="1" EstimateRebinds="0" EstimateRewinds="0" EstimatedExecutionMode="Row">
 
